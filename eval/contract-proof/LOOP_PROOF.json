@@ -1,0 +1,10 @@
+{
+  "confirmed": true,
+  "succeeded_events": 1,
+  "total_events": 1,
+  "adapter_type": "command",
+  "fallback_used": false,
+  "provider": "openai",
+  "response_id": "resp_0734224e3dee3767006a1a8a02c85881a38e6764dc6f545a6b",
+  "duration_ms_first_event": 72175
+}

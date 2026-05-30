@@ -1,0 +1,12 @@
+﻿{
+    "verified":  true,
+    "mode":  "real",
+    "duration_ms":  100554,
+    "provider":  "claude-code",
+    "missing_keys":  [
+
+                     ],
+    "fallback_used":  false,
+    "changes_count":  1,
+    "raw_output":  "C:\\Users\\domes\\AI\\Agents\\demos\\orchestrated-loop\\eval\\contract-proof\\last_stdout_claude.json"
+}

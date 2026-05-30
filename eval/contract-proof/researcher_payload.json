@@ -1,0 +1,15 @@
+{
+  "role": "researcher",
+  "goal": {
+    "objective": "Identify the current stable release channel and rough cadence of the official OpenAI Python SDK.",
+    "constraints": ["public information only", "no code execution"]
+  },
+  "plan": {
+    "steps": ["state the latest stable line", "note the release cadence", "flag any uncertainty"]
+  },
+  "questions": [
+    "What is the latest stable major version line of the openai Python package?",
+    "Roughly how often are releases published?"
+  ],
+  "workspace": "."
+}

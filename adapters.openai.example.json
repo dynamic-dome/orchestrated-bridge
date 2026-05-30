@@ -1,0 +1,13 @@
+{
+  "researcher": {
+    "type": "command",
+    "command": [
+      "python",
+      "-m",
+      "orchestrated_loop.provider_adapters.openai_researcher"
+    ],
+    "timeout_seconds": 60,
+    "max_attempts": 2,
+    "fallback": true
+  }
+}

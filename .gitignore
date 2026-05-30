@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.pytest-tmp/
+pytest-cache-files-*/
+
+# Agent-/Session-State und generierte Lauf-Artefakte (kein Quellcode).
+.agent-memory/
+state/
+deliverables/
+
+# Fake-Beweis-Artefakte (nur Mechanik, keine Vertragsbeweise — ADR 0004).
+# Die generierte Fake-CLI und die mode:fake-Proofs gehoeren nicht ins Repo.
+eval/contract-proof/_fake_claude*.py
+eval/contract-proof/PROOF_*_fake.json
+eval/contract-proof/last_stdout_*_fake.json

@@ -1,0 +1,16 @@
+﻿{
+    "verified":  true,
+    "duration_ms":  34678,
+    "provider":  "openai",
+    "response_id":  "resp_022456d77a6ea976006a1a8917324881a08fbf9e740598d272",
+    "model":  "gpt-5",
+    "missing_keys":  [
+
+                     ],
+    "fallback_used":  false,
+    "answer_present":  true,
+    "answer_preview":  "Stable channel: the OpenAI Python SDK is on the 1.x major line (stable on PyPI under the package name \"openai\"). Cadence: releases are frequent—typically weekly",
+    "findings_count":  5,
+    "citations_count":  3,
+    "raw_output":  "C:\\Users\\domes\\AI\\Agents\\demos\\orchestrated-loop\\eval\\contract-proof\\last_stdout.json"
+}

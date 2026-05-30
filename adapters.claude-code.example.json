@@ -1,0 +1,24 @@
+{
+  "builder": {
+    "type": "command",
+    "command": [
+      "python",
+      "-m",
+      "orchestrated_loop.provider_adapters.claude_code_role"
+    ],
+    "timeout_seconds": 300,
+    "max_attempts": 2,
+    "fallback": true
+  },
+  "judge": {
+    "type": "command",
+    "command": [
+      "python",
+      "-m",
+      "orchestrated_loop.provider_adapters.claude_code_role"
+    ],
+    "timeout_seconds": 300,
+    "max_attempts": 2,
+    "fallback": true
+  }
+}

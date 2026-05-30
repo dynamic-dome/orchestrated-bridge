@@ -1,0 +1,38 @@
+{
+  "role": "judge",
+  "goal": {
+    "objective": "Add a one-line module docstring to a sample file in the workspace.",
+    "success_criteria": [
+      "The target file starts with a single module docstring.",
+      "The file remains syntactically valid Python.",
+      "The change is reported as a unified diff."
+    ],
+    "constraints": ["keep all writes inside the workspace", "do not run network calls"]
+  },
+  "plan": {
+    "iteration": 1,
+    "task": "Add a module docstring and verify it parses.",
+    "criteria": {"planning": 0.2, "implementation": 0.4, "review": 0.2, "operability": 0.2}
+  },
+  "research": {
+    "answer": "A module docstring is a string literal as the first statement of a Python module.",
+    "findings": [],
+    "citations": [{"source": "PEP 257", "loc": "module docstrings"}],
+    "open_questions": []
+  },
+  "build": {
+    "changes": [
+      {
+        "file": "src/orchestrated_loop/__main__.py",
+        "diff": "--- a/src/orchestrated_loop/__main__.py\n+++ b/src/orchestrated_loop/__main__.py\n@@ -1,3 +1,5 @@\n+\"\"\"Command-line entry point for the orchestrated loop demo package.\"\"\"\n+\n from .loop import main\n \n \n"
+      }
+    ],
+    "logs": "Added a module docstring to src/orchestrated_loop/__main__.py and confirmed it parses.",
+    "test_results": {"passed": 1, "failed": 0, "details": "ast.parse + ast.get_docstring() confirmed the docstring is the recognized first statement."},
+    "artifacts": ["src/orchestrated_loop/__main__.py"],
+    "tasks_completed": ["I1-03"],
+    "research_used": "module docstring definition"
+  },
+  "criteria": {"planning": 0.2, "implementation": 0.4, "review": 0.2, "operability": 0.2},
+  "workspace": "."
+}

@@ -1,0 +1,3 @@
+# Normalisiere Zeilenenden auf LF im Repo (verhindert Windows-CRLF-Phantom-Diffs).
+* text=auto eol=lf
+*.ps1 text eol=crlf

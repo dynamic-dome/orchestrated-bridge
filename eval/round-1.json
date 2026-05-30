@@ -1,0 +1,67 @@
+{
+  "plan": {
+    "iteration": 1,
+    "task": "Build a Markdown glossary extractor prototype using a baseline heuristic approach.",
+    "questions": [
+      "Which glossary extraction strategy is simplest to reproduce?",
+      "Which edge cases should the first pass cover?"
+    ],
+    "criteria": {
+      "functional": 0.5,
+      "robustness": 0.3,
+      "docs": 0.2
+    },
+    "acceptance_tests": [
+      "extracts headings as candidate terms",
+      "keeps acronyms such as API and DCO",
+      "writes a reproducible README example"
+    ]
+  },
+  "research": {
+    "answer": "Start with a deterministic heading-and-definition heuristic. Keep embeddings as a later enhancement because reproducible tests are easier with rules.",
+    "citations": [
+      {
+        "source": "demo-source.md",
+        "loc": "section: strategies"
+      },
+      {
+        "source": "demo-source.md",
+        "loc": "section: edge-cases"
+      }
+    ],
+    "open_questions": []
+  },
+  "build": {
+    "changes": [
+      {
+        "file": "src\\sample_glossary.md",
+        "diff": "+ # API / # DCO sample glossary input"
+      }
+    ],
+    "logs": "Dummy builder created sample glossary input.",
+    "test_results": {
+      "passed": 3,
+      "failed": 0,
+      "details": [
+        "extracts headings as candidate terms",
+        "keeps acronyms such as API and DCO",
+        "writes a reproducible README example"
+      ]
+    },
+    "artifacts": [
+      "src\\sample_glossary.md"
+    ],
+    "research_used": "Start with a deterministic heading-and-definition heuristic. Keep embeddings as a later enhancement because reproducible tests are easier with rules."
+  },
+  "judge": {
+    "scores": {
+      "functional": 1.0,
+      "robustness": 0.9,
+      "docs": 0.85
+    },
+    "overall": 0.94,
+    "fail_reasons": [],
+    "blocking": false,
+    "next_actions": []
+  }
+}

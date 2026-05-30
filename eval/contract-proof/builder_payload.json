@@ -1,0 +1,17 @@
+{
+  "role": "builder",
+  "goal": {
+    "objective": "Add a one-line module docstring to a sample file in the workspace.",
+    "constraints": ["keep all writes inside the workspace", "do not run network calls"]
+  },
+  "plan": {
+    "steps": ["inspect the target file", "add a single docstring line", "report the change as a diff"]
+  },
+  "research": {
+    "answer": "A module docstring is a string literal as the first statement of a Python module.",
+    "findings": [],
+    "citations": [],
+    "open_questions": []
+  },
+  "workspace": "."
+}

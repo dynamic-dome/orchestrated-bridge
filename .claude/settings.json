@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m orchestrated_loop.gate_cli --workspace \"$CLAUDE_PROJECT_DIR\" --shadow",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

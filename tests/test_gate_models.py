@@ -83,6 +83,22 @@ def test_digest_is_canonical(tmp_path):
     assert request_a.tool_input_digest == request_b.tool_input_digest
 
 
+def test_digest_distinguishes_tool_name(tmp_path):
+    # MINOR-1 (code-review): identical tool_input, DIFFERENT tool_name must yield
+    # different digests — otherwise an accept for one tool wrongly unlocks the
+    # other (false allow). tool_name is part of the gate dedupe key.
+    same_input = {"command": "rm -rf /"}
+    bash = GateRequest.new(
+        run_id="r", iteration=1, stage="build", action="tool_use",
+        tool_name="Bash", tool_input=same_input, workspace=tmp_path, requires=[],
+    )
+    write = GateRequest.new(
+        run_id="r", iteration=1, stage="build", action="tool_use",
+        tool_name="Write", tool_input=same_input, workspace=tmp_path, requires=[],
+    )
+    assert bash.tool_input_digest != write.tool_input_digest
+
+
 def test_gate_result_accepted_requires_evidence():
     result = GateResult.accepted(
         gate_id="gate-1",

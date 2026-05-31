@@ -1,0 +1,18 @@
+{
+  "_comment": "UNTESTED on this system (GT5). Codex/codex-cli PreToolUse hook coverage is version-dependent and was NOT live-verified here. This file is an EXAMPLE of how the same gate would attach on the Codex side — it is NOT part of the Iteration-1 acceptance criteria and MUST NOT be assumed to work without a real Codex roundtrip. On this setup Claude Code is the orchestrator, so only the Claude hook (claude-pre-tool-use-gate.json) is the live-proven path. Before relying on this: verify your codex-cli version actually supports a PreToolUse-equivalent hook with stdin event + stdout decision, and confirm the decision envelope it expects (it may differ from Claude's hookSpecificOutput shape).",
+  "_status": "UNTESTED — example only, not in acceptance criteria",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m orchestrated_loop.gate_cli --workspace \"$CODEX_PROJECT_DIR\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

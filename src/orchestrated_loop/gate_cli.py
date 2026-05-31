@@ -47,6 +47,24 @@ def _decision(permission: str, reason: str) -> dict[str, str]:
     return {"permissionDecision": permission, "permissionDecisionReason": reason}
 
 
+def _hook_envelope(decision: dict[str, str]) -> dict[str, Any]:
+    """Wrap a flat decision into the Claude-Code PreToolUse stdout envelope.
+
+    Claude Code reads a PreToolUse hook's permission decision from
+    ``hookSpecificOutput`` (hookEventName=PreToolUse); the flat dict alone is
+    NOT honoured by current versions. The flat shape stays the return of
+    decision_for_hook_event (unit-tested directly); only main()'s stdout is
+    wrapped here so the live hook actually blocks.
+    """
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": decision["permissionDecision"],
+            "permissionDecisionReason": decision["permissionDecisionReason"],
+        }
+    }
+
+
 def _latest_resolved_gate(ledger: GateLedger, digest: str) -> dict[str, Any] | None:
     """Find the newest gate_requested event for ``digest`` (open or resolved).
 
@@ -171,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
     except json.JSONDecodeError:
         event = None
     if not isinstance(event, dict):
-        print(json.dumps(_decision(ALLOW, "no hook event")))
+        print(json.dumps(_hook_envelope(_decision(ALLOW, "no hook event"))))
         return 0
 
     if args.shadow:
@@ -186,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
         workspace = Path.cwd()
 
     decision = decision_for_hook_event(event, workspace)
-    print(json.dumps(decision))
+    print(json.dumps(_hook_envelope(decision)))
     return 0
 
 

@@ -48,10 +48,36 @@ def _run_cli(tmp_path: Path, payload, *, extra_args=None):
     return proc
 
 
+def _decision_from_proc(proc) -> dict:
+    """Unwrap the PreToolUse decision from the CLI's stdout.
+
+    Claude Code expects the decision under a ``hookSpecificOutput`` envelope
+    (hookEventName=PreToolUse). The inner dict carries permissionDecision /
+    permissionDecisionReason — the same flat shape decision_for_hook_event
+    returns — so existing assertions stay unchanged via this unwrap."""
+    raw = json.loads(proc.stdout)
+    assert raw["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
+    return raw["hookSpecificOutput"]
+
+
+def test_main_emits_hookspecificoutput_envelope(tmp_path):
+    """Phase 5: Claude Code expects the decision wrapped in hookSpecificOutput
+    with hookEventName=PreToolUse — not the flat dict. The flat dict stays the
+    return of decision_for_hook_event; only main()'s stdout is wrapped."""
+    proc = _run_cli(tmp_path, _risky_event(tmp_path))
+    assert proc.returncode == 0, proc.stderr
+    raw = json.loads(proc.stdout)
+    assert "hookSpecificOutput" in raw
+    inner = raw["hookSpecificOutput"]
+    assert inner["hookEventName"] == "PreToolUse"
+    assert inner["permissionDecision"] == "deny"
+    assert "permissionDecisionReason" in inner
+
+
 def test_blocks_first_risky_tool(tmp_path):
     proc = _run_cli(tmp_path, _risky_event(tmp_path))
     assert proc.returncode == 0, proc.stderr
-    decision = json.loads(proc.stdout)
+    decision = _decision_from_proc(proc)
     assert decision["permissionDecision"] == "deny"
     assert "gate" in decision["permissionDecisionReason"].lower()
     assert (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
@@ -152,12 +178,12 @@ def test_mcp_write_tool_is_risky(tmp_path):
 def test_malformed_stdin_fails_open(tmp_path):
     proc = _run_cli(tmp_path, "{bad json")
     assert proc.returncode == 0, proc.stderr
-    decision = json.loads(proc.stdout)
+    decision = _decision_from_proc(proc)
     assert decision["permissionDecision"] == "allow"
 
     proc_empty = _run_cli(tmp_path, "")
     assert proc_empty.returncode == 0, proc_empty.stderr
-    decision_empty = json.loads(proc_empty.stdout)
+    decision_empty = _decision_from_proc(proc_empty)
     assert decision_empty["permissionDecision"] == "allow"
 
 

@@ -1,0 +1,17 @@
+{
+  "_comment": "Claude Code PreToolUse gate hook for the dual-bridge architecture. NOT auto-active: installing it is a deliberate operator step (global rule §12). Merge the 'hooks' block into .claude/settings.json (project) or ~/.claude/settings.json (user). The matcher is a regex OR-list; mcp__.* gates every MCP tool (fail-closed). The gate_cli reads the PreToolUse event on stdin and writes a hookSpecificOutput decision on stdout. Workspace resolves from --workspace, else the event cwd, else CWD.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m orchestrated_loop.gate_cli --workspace \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

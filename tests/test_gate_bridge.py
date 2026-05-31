@@ -52,6 +52,17 @@ def test_gate_task_frontmatter_is_review_without_repo(tmp_path):
     assert "repo:" not in text
 
 
+def test_gate_task_body_shows_the_action(tmp_path):
+    """Phase-6 fix: the review task body must show the REAL action (command), not
+    just the gate_id — else the reviewer refuses to judge content it never saw."""
+    client = BridgeGateClient(tmp_path)
+    request = _make_request(tmp_path)  # Bash: git push
+    task_path = client.write_gate_task(request)
+    text = task_path.read_text(encoding="utf-8")
+    assert request.action_summary in text
+    assert "git push" in text
+
+
 def test_gate_task_id_is_valid_bridge_shape(tmp_path):
     """The bridge poller hard-validates the task_id; a bad shape is quarantined.
     Our self-mirrored id must match make_task_id() exactly."""

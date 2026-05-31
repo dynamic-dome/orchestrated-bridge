@@ -66,6 +66,40 @@ def _tool_input_digest(tool_name: str, tool_input: dict[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+ACTION_SUMMARY_MAX = 600
+
+
+def _summarize_action(tool_name: str, tool_input: dict[str, Any]) -> str:
+    """A short, human-readable description of the gated action, for the reviewer.
+
+    The reviewer must SEE the action to judge it (Phase-6: a digest-only review
+    task makes the reviewer refuse — correctly — to approve content it never
+    saw). We surface the most telling field per tool, bounded so a pathological
+    input can't bloat the review task body.
+
+    NOTE: this string is shipped over the bridge. Under the Iteration-1
+    repo-write policy + threat model (enforce only on harmless workflows), tool
+    inputs are not expected to carry secrets; a secret-sweep is backlog before
+    enforcing on secret-bearing repos.
+    """
+    parts: list[str] = [tool_name]
+    if isinstance(tool_input, dict):
+        for key in ("command", "file_path", "path", "content"):
+            val = tool_input.get(key)
+            if isinstance(val, str) and val.strip():
+                parts.append(f"{key}={val.strip()}")
+                break
+        else:
+            # No telling field — fall back to a compact key list.
+            keys = ", ".join(sorted(str(k) for k in tool_input))
+            if keys:
+                parts.append(f"keys: {keys}")
+    summary = " ".join(parts)
+    if len(summary) > ACTION_SUMMARY_MAX:
+        summary = summary[: ACTION_SUMMARY_MAX - 3].rstrip() + "..."
+    return summary
+
+
 @dataclass(frozen=True)
 class GateRequest:
     gate_id: str
@@ -80,6 +114,7 @@ class GateRequest:
     status: str
     created_at: str
     expires_at: str
+    action_summary: str = ""
 
     @classmethod
     def new(
@@ -111,6 +146,7 @@ class GateRequest:
             status="requested",
             created_at=_iso_z(now),
             expires_at=_iso_z(now + GATE_TTL),
+            action_summary=_summarize_action(tool_name, tool_input),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -127,6 +163,7 @@ class GateRequest:
             "status": self.status,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
+            "action_summary": self.action_summary,
         }
 
 

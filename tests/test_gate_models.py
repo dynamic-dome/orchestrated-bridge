@@ -145,3 +145,47 @@ def test_times_are_utc_z(tmp_path):
     payload = request.to_dict()
     assert payload["created_at"].endswith("Z")
     assert payload["expires_at"].endswith("Z")
+
+
+def test_action_summary_describes_bash_command(tmp_path):
+    """Phase-6 fix: the bridge reviewer needs to SEE the action, not just a
+    digest. GateRequest carries a short, human-readable action_summary built
+    from tool_name + tool_input so the review task can show the real command."""
+    request = GateRequest.new(
+        run_id="run-1",
+        iteration=1,
+        stage="build",
+        action="tool_use",
+        tool_name="Bash",
+        tool_input={"command": "git push origin main"},
+        workspace=tmp_path,
+        requires=[],
+    )
+    assert "Bash" in request.action_summary
+    assert "git push origin main" in request.action_summary
+    assert request.to_dict()["action_summary"] == request.action_summary
+
+
+def test_action_summary_is_bounded(tmp_path):
+    """A pathological tool_input must not blow up the review task body."""
+    request = GateRequest.new(
+        run_id="run-1",
+        iteration=1,
+        stage="build",
+        action="tool_use",
+        tool_name="Write",
+        tool_input={"content": "x" * 5000},
+        workspace=tmp_path,
+        requires=[],
+    )
+    assert len(request.action_summary) <= 600
+
+
+def test_action_summary_handles_edit_file_path(tmp_path):
+    request = GateRequest.new(
+        run_id="run-1", iteration=1, stage="build", action="tool_use",
+        tool_name="Edit", tool_input={"file_path": "/etc/passwd"},
+        workspace=tmp_path, requires=[],
+    )
+    assert "Edit" in request.action_summary
+    assert "/etc/passwd" in request.action_summary

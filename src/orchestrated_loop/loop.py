@@ -301,6 +301,7 @@ def write_run_indexes(
     adapters: dict[str, Any],
     results: dict[str, Any],
     target: float,
+    gate_mode: str = "off",
 ) -> dict[str, Any]:
     manifest["goal"] = goal
     manifest["adapters"] = adapters
@@ -321,11 +322,11 @@ def write_run_indexes(
     )
     manifest["iteration_count"] = len(manifest["iterations"])
     save_json(files["RUN_MANIFEST.json"], manifest)
-    artifact_index = build_artifact_index(workspace, results)
+    artifact_index = build_artifact_index(workspace, results, gate_mode)
     save_json(files["ARTIFACTS.json"], artifact_index)
     save_json(
         files["DCO_HANDOFF.json"],
-        build_dco_handoff(workspace, manifest, goal, adapters, results, artifact_index),
+        build_dco_handoff(workspace, manifest, goal, adapters, results, artifact_index, gate_mode),
     )
     results["run"] = {
         "run_id": manifest["run_id"],
@@ -344,10 +345,12 @@ def build_dco_handoff(
     adapters: dict[str, Any],
     results: dict[str, Any],
     artifact_index: dict[str, Any],
+    gate_mode: str = "off",
 ) -> dict[str, Any]:
     latest = results["iterations"][-1] if results["iterations"] else {}
     plan = latest.get("plan", {})
     judge = latest.get("judge", {})
+    gate_required = gate_mode in ("shadow", "enforce")
     return {
         "version": 1,
         "workflow_id": manifest["run_id"],
@@ -406,6 +409,12 @@ def build_dco_handoff(
             "mutates_dco": False,
             "secrets_required": False,
             "artifact_count": len(artifact_index.get("artifacts", [])),
+            # Gate metadata (Phase 4). gate_required signals to the DCO importer
+            # that worker tasks carry a gate_policy; the loop itself never blocks
+            # a local stage — the PreToolUse hook does the actual gating.
+            "gate_required": gate_required,
+            "gate_mode": gate_mode,
+            "gate_ledger": "state/GATE_LEDGER.jsonl" if gate_required else None,
         },
         "status": {
             "state": manifest.get("status", "initialized"),
@@ -423,7 +432,20 @@ def _dco_decision(status: str) -> str:
     return "retry"
 
 
-def build_artifact_index(workspace: Path, results: dict[str, Any]) -> dict[str, Any]:
+def ensure_gate_ledger(workspace: Path) -> Path:
+    """Make sure state/GATE_LEDGER.jsonl exists (append-only). Touching it empty
+    is enough: the gate CLI/bridge append events; the loop only guarantees the
+    file is present so shadow/enforce runs carry it in the artifact index."""
+    path = workspace / "state" / "GATE_LEDGER.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_text("", encoding="utf-8")
+    return path
+
+
+def build_artifact_index(
+    workspace: Path, results: dict[str, Any], gate_mode: str = "off"
+) -> dict[str, Any]:
     artifact_paths = [
         "state/ADAPTERS.json",
         "state/ADAPTER_EVENTS.jsonl",
@@ -450,6 +472,9 @@ def build_artifact_index(workspace: Path, results: dict[str, Any]) -> dict[str, 
     ):
         if (workspace / optional_path).exists():
             artifact_paths.append(optional_path)
+    # Gate ledger is an artifact whenever gate mode is active (Phase 4).
+    if gate_mode in ("shadow", "enforce"):
+        artifact_paths.append("state/GATE_LEDGER.jsonl")
 
     artifacts = []
     seen = set()
@@ -482,9 +507,12 @@ def orchestrate(
     target: float = 0.85,
     goal: str | None = None,
     adapter_config: Path | None = None,
+    gate_mode: str = "off",
 ) -> dict[str, Any]:
     workspace = workspace.resolve()
     files = ensure_state(workspace)
+    if gate_mode in ("shadow", "enforce"):
+        ensure_gate_ledger(workspace)
     results = load_results(files["RESULTS.json"])
     manifest = load_run_manifest(files["RUN_MANIFEST.json"])
     goal_spec = load_goal(files["GOAL.json"], goal)
@@ -568,11 +596,11 @@ def orchestrate(
             )
             pending_worker_feedback = None
         save_json(files["RESULTS.json"], results)
-        write_run_indexes(workspace, files, manifest, goal_dict, adapter_summary, results, target)
+        write_run_indexes(workspace, files, manifest, goal_dict, adapter_summary, results, target, gate_mode)
         if score["overall"] >= target or score["blocking"]:
             break
 
-    write_run_indexes(workspace, files, manifest, goal_dict, adapter_summary, results, target)
+    write_run_indexes(workspace, files, manifest, goal_dict, adapter_summary, results, target, gate_mode)
     save_json(files["RESULTS.json"], results)
     from .run_status import build_run_status
 
@@ -589,6 +617,15 @@ def build_parser() -> argparse.ArgumentParser:
     goal_group = parser.add_mutually_exclusive_group()
     goal_group.add_argument("--goal", help="Objective to hand to the orchestrator.")
     goal_group.add_argument("--goal-file", type=Path, help="Text file containing the objective.")
+    # GT4: --gate-mode is its OWN arg, NOT part of the --goal exclusive group.
+    parser.add_argument(
+        "--gate-mode",
+        choices=["off", "shadow", "enforce"],
+        default="off",
+        help="Pre-tool-use gate mode. off: no gate. shadow: record but never "
+        "block. enforce: gate metadata + ledger (the PreToolUse hook does the "
+        "actual blocking, not the loop).",
+    )
     return parser
 
 
@@ -596,7 +633,14 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     goal = args.goal_file.read_text(encoding="utf-8") if args.goal_file else args.goal
-    results = orchestrate(args.workspace, args.max_iter, args.target, goal, args.adapter_config)
+    results = orchestrate(
+        args.workspace,
+        args.max_iter,
+        args.target,
+        goal,
+        args.adapter_config,
+        gate_mode=args.gate_mode,
+    )
     final = results["iterations"][-1]["judge"]
     print(
         json.dumps(

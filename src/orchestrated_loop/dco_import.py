@@ -106,6 +106,21 @@ def build_dco_import_package(workspace: Path) -> dict[str, Any]:
     handoff = _load_json(state / "DCO_HANDOFF.json")
     backlog = _build_worker_backlog(workspace, handoff)
     agent_cards = _build_agent_cards(handoff["workflow_id"], backlog["tasks"])
+    safety = {
+        "read_only": True,
+        "mutates_dco": False,
+        "target_workspace": str(workspace),
+    }
+    # Carry a gate_policy through to the worker package only when the upstream
+    # handoff marks the run as gated (Phase 4). When the gate is off, the field
+    # is absent — no false signal that workers are gated.
+    handoff_safety = handoff.get("safety", {})
+    if isinstance(handoff_safety, dict) and handoff_safety.get("gate_required"):
+        safety["gate_policy"] = {
+            "gate_required": True,
+            "gate_mode": handoff_safety.get("gate_mode", "enforce"),
+            "gate_ledger": handoff_safety.get("gate_ledger", "state/GATE_LEDGER.jsonl"),
+        }
     package = {
         "version": 1,
         "created_at": _utc_now(),
@@ -117,11 +132,7 @@ def build_dco_import_package(workspace: Path) -> dict[str, Any]:
         "audit_log": "state/DCO_AUDIT.jsonl",
         "task_count": len(backlog["tasks"]),
         "status": handoff["status"],
-        "safety": {
-            "read_only": True,
-            "mutates_dco": False,
-            "target_workspace": str(workspace),
-        },
+        "safety": safety,
     }
 
     _write_json(state / "AGENT_CARDS.json", agent_cards)

@@ -27,6 +27,7 @@ def build_run_status(workspace: Path) -> dict[str, Any]:
     decision = str(handoff.get("status", {}).get("decision") or _decision_for_state(status_state))
     adapter_summary = _adapter_summary(adapters, adapter_events, latest)
     dco_summary = _dco_summary(handoff, validation, import_package, worker_tasks, decision)
+    gate_summary = _gate_summary(workspace, handoff)
     status = {
         "version": 1,
         "generated_at": _utc_now(),
@@ -49,6 +50,7 @@ def build_run_status(workspace: Path) -> dict[str, Any]:
         },
         "adapters": adapter_summary,
         "dco": dco_summary,
+        "gate": gate_summary,
         "operator": {
             "recommended_action": _recommended_action(status_state, adapter_summary, dco_summary),
         },
@@ -128,6 +130,35 @@ def _dco_summary(
         "import_package_exists": import_exists,
         "worker_task_count": int(task_count or 0),
         "queue_ready": queue_ready,
+    }
+
+
+def _gate_summary(workspace: Path, handoff: dict[str, Any]) -> dict[str, Any]:
+    """Summarise the pre-tool-use gate (Phase 4): mode + open (unresolved) gates.
+
+    A gate is *open* when a ``gate_requested`` event has no later
+    ``gate_result`` for the same gate_id. Reads the append-only JSONL ledger
+    directly (malformed lines ignored) so run_status stays dependency-light.
+    """
+    safety = handoff.get("safety", {})
+    mode = str(safety.get("gate_mode") or "off") if isinstance(safety, dict) else "off"
+    ledger_path = workspace / "state" / "GATE_LEDGER.jsonl"
+    requested: set[str] = set()
+    resolved: set[str] = set()
+    for event in _load_jsonl(ledger_path):
+        gate_id = event.get("gate_id")
+        if not isinstance(gate_id, str):
+            continue
+        kind = event.get("event")
+        if kind == "gate_requested":
+            requested.add(gate_id)
+        elif kind == "gate_result":
+            resolved.add(gate_id)
+    open_count = len(requested - resolved)
+    return {
+        "mode": mode,
+        "ledger_exists": ledger_path.exists(),
+        "open_count": open_count,
     }
 
 

@@ -91,6 +91,62 @@ def test_allows_non_risky(tmp_path):
     assert not (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
 
 
+_ANTHROPIC_SECRET = "sk-ant-" + "A1b2C3d4E5f6G7h8I9j0"
+
+
+def test_secret_in_risky_tool_denied_without_ledger(tmp_path):
+    """secret-sweep is a PURE LOCAL policy: a secret-bearing input is denied
+    immediately, with no gate request and no B roundtrip (no ledger write)."""
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    assert "secret" in decision["permissionDecisionReason"].lower()
+    assert "anthropic api key" in decision["permissionDecisionReason"].lower()
+    # No ledger: secret-sweep never requests a review.
+    assert not (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
+
+
+def test_secret_in_non_risky_tool_also_denied(tmp_path):
+    """'Ganz vorne, alle Tools': secret-sweep runs BEFORE is_risky, so even a
+    normally non-gated tool (Read) is denied if it carries a secret."""
+    event = {
+        "tool_name": "Read",
+        "tool_input": {"content": f"key = {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    assert "secret" in decision["permissionDecisionReason"].lower()
+    assert not (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
+
+
+def test_secret_shadow_mode_logs_but_allows(tmp_path, monkeypatch):
+    """Shadow mode never blocks — a secret would-deny is logged as allow."""
+    monkeypatch.setenv("ORCH_GATE_MODE", "shadow")
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "allow"
+    reason = decision["permissionDecisionReason"].lower()
+    assert "shadow" in reason and "secret" in reason
+
+
+def test_clean_non_risky_still_not_gated(tmp_path):
+    """Regression: a clean (secret-free) non-risky tool stays 'not gated'."""
+    event = {"tool_name": "Read", "tool_input": {"file_path": "src/app.py"},
+             "cwd": str(tmp_path)}
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "allow"
+    assert decision["permissionDecisionReason"] == "not gated"
+
+
 def test_idempotent_reuse(tmp_path):
     event = _risky_event(tmp_path)
     first = decision_for_hook_event(event, tmp_path)

@@ -10,6 +10,7 @@ from typing import Any
 
 from orchestrated_loop.gate_ledger import EVENT_REQUESTED, GateLedger
 from orchestrated_loop.gate_models import GateRequest
+from orchestrated_loop.gate_secret_sweep import secret_sweep_violation
 
 # Iteration 1 risky-matcher: a repo-write policy. This is a DELIBERATELY MINIMAL
 # Iteration-1 allowlist, NOT a complete mutation taxonomy. It gates the known
@@ -108,6 +109,16 @@ def decision_for_hook_event(event: dict, workspace: Path) -> dict:
         os.environ.get("ORCH_GATE_MODE") == "shadow"
         or bool(event.get("_shadow_flag"))
     )
+
+    # secret-sweep: a PURE LOCAL policy that runs FIRST, before is_risky, for
+    # EVERY tool. A tool input that would write or expose a secret is denied
+    # immediately — no gate request, no ledger, no B roundtrip (a secret leak is
+    # never a "wait for review" case). It runs ahead of is_risky on purpose
+    # (defense-in-depth): a secret must be caught regardless of whether the
+    # repo-write matcher happens to also fire. Shadow still applies.
+    secret = secret_sweep_violation(tool_input)
+    if secret is not None:
+        return _shadowed(shadow, DENY, f"secret: {secret}")
 
     if not is_risky(tool_name):
         return _decision(ALLOW, "not gated")

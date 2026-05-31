@@ -31,13 +31,18 @@ def make_gate_id() -> str:
     return f"gate-{date_part}-{time_part}-{micro_part}-{tail}"
 
 
-def _tool_input_digest(tool_input: dict[str, Any]) -> str:
-    """Canonical sha256 digest of a tool input, used as the gate dedupe key.
+def _tool_input_digest(tool_name: str, tool_input: dict[str, Any]) -> str:
+    """Canonical sha256 digest over (tool_name, tool_input), the gate dedupe key.
 
-    Fail-fast (NOT fail-open): a tool input we cannot canonicalise raises
-    ValueError here rather than crashing later inside the lock path with an
-    opaque TypeError. This is the gate's safety mechanism — a malformed input
-    must be rejected loudly, never silently waved through.
+    tool_name is part of the digest (code-review MINOR-1): two DIFFERENT tools
+    with a coincidentally identical tool_input must NOT share a gate — otherwise
+    an accept for tool A would wrongly unlock tool B (a false "allow", the unsafe
+    direction for a security gate).
+
+    Fail-fast (NOT fail-open): an input we cannot canonicalise raises ValueError
+    here rather than crashing later inside the lock path with an opaque
+    TypeError. This is the gate's safety mechanism — a malformed input must be
+    rejected loudly, never silently waved through.
 
     Caveat (representation-sensitive): the digest is over the JSON text, so
     ``1`` and ``1.0`` hash differently, as do non-ASCII normalisation variants.
@@ -49,7 +54,10 @@ def _tool_input_digest(tool_input: dict[str, Any]) -> str:
     """
     try:
         canonical = json.dumps(
-            tool_input, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            {"tool_name": tool_name, "tool_input": tool_input},
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
         )
     except TypeError as exc:
         # Unorderable/mixed-type keys ({1: ..., "b": ...}) or non-serialisable
@@ -97,7 +105,7 @@ class GateRequest:
             stage=stage,
             action=action,
             tool_name=tool_name,
-            tool_input_digest=_tool_input_digest(tool_input),
+            tool_input_digest=_tool_input_digest(tool_name, tool_input),
             workspace=Path(workspace).as_posix(),
             requires=list(requires),
             status="requested",

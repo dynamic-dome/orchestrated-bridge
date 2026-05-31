@@ -103,35 +103,29 @@ def _build_document(frontmatter: dict[str, str], body: str) -> str:
 class BridgeGateClient:
     """Write gate-review tasks into the bridge and collect verdicts back.
 
-    No dual-bridge import: the file protocol is mirrored. Paths are lane-aware
-    with a legacy flat outbox/inbox fallback for a bridge root that predates the
-    Stage-2a lane split.
+    No dual-bridge import: the file protocol is mirrored. Lanes-only — the gate
+    task always travels the A-to-B lane (the only lane an A-initiated task may
+    use, and the only outbox the current poller scans). There is deliberately NO
+    flat outbox/inbox fallback: it would be a dead drop the poller never reads.
     """
 
     def __init__(self, bridge_root: Path) -> None:
         self._root = Path(bridge_root)
 
-    # --- path resolution (lane-aware + legacy fallback) ---------------------
-
-    def _use_lanes(self) -> bool:
-        """Lanes are in use unless the root has a flat legacy outbox/ and no
-        lane-* directories at all."""
-        if (self._root / f"lane-{GATE_LANE}").exists():
-            return True
-        if (self._root / "outbox").exists():
-            return False
-        # Fresh root: default to the modern lane layout.
-        return True
+    # --- path resolution (lanes-only) ---------------------------------------
+    # NO flat outbox/inbox fallback. The CURRENT dual-bridge poller
+    # (handoff_poll.py _poll_lane) scans ONLY lane-<lane>/outbox and writes ONLY
+    # lane-<lane>/inbox — the Stage-2a lane split removed flat-dir handling.
+    # Writing a gate task into a legacy flat outbox/ would be a DEAD DROP the
+    # poller never reads: the hook + ledger would wait forever for a review that
+    # never runs (Codex-Verifier MAJOR, 2026-05-31). So the gate always uses the
+    # A-to-B lane, which is also the only lane an A-initiated task may travel.
 
     def _outbox(self) -> Path:
-        if self._use_lanes():
-            return self._root / f"lane-{GATE_LANE}" / "outbox"
-        return self._root / "outbox"
+        return self._root / f"lane-{GATE_LANE}" / "outbox"
 
     def _inbox(self) -> Path:
-        if self._use_lanes():
-            return self._root / f"lane-{GATE_LANE}" / "inbox"
-        return self._root / "inbox"
+        return self._root / f"lane-{GATE_LANE}" / "inbox"
 
     # --- task write ---------------------------------------------------------
 

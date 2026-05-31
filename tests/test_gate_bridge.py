@@ -143,13 +143,31 @@ def test_collect_result_ignores_drive_conflict_copies(tmp_path):
     assert client.collect_result("gate-x") is None
 
 
-# --- Legacy fallback (no lanes present) -------------------------------------
+# --- Always lane-aware (the live poller is lanes-only, no flat fallback) -----
 
 
-def test_legacy_fallback_when_no_lanes(tmp_path):
-    """If the bridge root has a flat outbox/ (no lane-* dirs), fall back to it."""
+def test_always_writes_to_lane_even_with_legacy_outbox(tmp_path):
+    """Codex-Verifier MAJOR: the CURRENT dual-bridge poller (handoff_poll.py
+    _poll_lane) scans ONLY lane-<lane>/outbox. A flat outbox/ is a dead drop the
+    poller never reads. So even when a legacy flat outbox/ exists, the gate task
+    MUST go into lane-A-to-B/outbox — never into the flat outbox/ (would hang)."""
     (tmp_path / "outbox").mkdir(parents=True, exist_ok=True)
     client = BridgeGateClient(tmp_path)
     task_path = client.write_gate_task(_make_request(tmp_path))
 
-    assert task_path.parent == tmp_path / "outbox"
+    assert task_path.parent == tmp_path / "lane-A-to-B" / "outbox"
+    assert task_path.parent != tmp_path / "outbox"
+
+
+def test_collect_reads_only_lane_inbox(tmp_path):
+    """Mirror of the write side: a result placed in a flat legacy inbox/ must NOT
+    be collected — only lane-A-to-B/inbox is the live result location."""
+    legacy_inbox = tmp_path / "inbox"
+    legacy_inbox.mkdir(parents=True, exist_ok=True)
+    (legacy_inbox / "result-20260531-101501-123456-0-a1b2.md").write_text(
+        "---\nstatus: done\ngate_id: gate-legacy\nverdict: accepted\n---\nx\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    client = BridgeGateClient(tmp_path)
+    assert client.collect_result("gate-legacy") is None

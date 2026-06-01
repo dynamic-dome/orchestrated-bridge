@@ -180,9 +180,8 @@ def test_repo_write_gate_still_shadow_while_secret_enforces(tmp_path):
         "tool_name": "Bash",
         "tool_input": {"command": "git push"},
         "cwd": str(tmp_path),
-        "_shadow_flag": True,
     }
-    clean_decision = decision_for_hook_event(clean, tmp_path)
+    clean_decision = decision_for_hook_event(clean, tmp_path, shadow=True)
     assert clean_decision["permissionDecision"] == "allow"
     assert "shadow" in clean_decision["permissionDecisionReason"].lower()
 
@@ -190,9 +189,8 @@ def test_repo_write_gate_still_shadow_while_secret_enforces(tmp_path):
         "tool_name": "Bash",
         "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
         "cwd": str(tmp_path),
-        "_shadow_flag": True,
     }
-    secret_decision = decision_for_hook_event(secret, tmp_path)
+    secret_decision = decision_for_hook_event(secret, tmp_path, shadow=True)
     assert secret_decision["permissionDecision"] == "deny"
     assert "secret" in secret_decision["permissionDecisionReason"].lower()
 
@@ -309,6 +307,29 @@ def test_event_payload_cannot_enable_shadow(tmp_path):
     event = _risky_event(tmp_path)
     event["gate_mode"] = "shadow"
     decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    assert "shadow" not in decision["permissionDecisionReason"].lower()
+
+
+def test_event_payload_shadow_flag_cannot_soften_gate(tmp_path):
+    # MAJOR (codex-verifier 2026-06-01): the operator-only shadow switch must be
+    # an EXPLICIT argument, never round-tripped through the untrusted event dict.
+    # An injected "_shadow_flag": true in the payload must NOT soften the gate.
+    event = _risky_event(tmp_path)
+    event["_shadow_flag"] = True
+    decision = decision_for_hook_event(event, tmp_path)  # shadow defaults to False
+    assert decision["permissionDecision"] == "deny"
+    assert "shadow" not in decision["permissionDecisionReason"].lower()
+
+
+def test_event_payload_shadow_flag_subprocess(tmp_path):
+    # Same exploit at the CLI level: a payload with _shadow_flag and NO --shadow
+    # flag must still deny. Proves main() doesn't trust the event for shadow.
+    event = _risky_event(tmp_path)
+    event["_shadow_flag"] = True
+    proc = _run_cli(tmp_path, event)  # no --shadow
+    assert proc.returncode == 0, proc.stderr
+    decision = _decision_from_proc(proc)
     assert decision["permissionDecision"] == "deny"
     assert "shadow" not in decision["permissionDecisionReason"].lower()
 

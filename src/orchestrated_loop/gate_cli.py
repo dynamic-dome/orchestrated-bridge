@@ -86,7 +86,7 @@ def _latest_resolved_gate(ledger: GateLedger, digest: str) -> dict[str, Any] | N
 
 
 def decision_for_hook_event(
-    event: dict, workspace: Path, local_policy: str = "enforce"
+    event: dict, workspace: Path, local_policy: str = "enforce", shadow: bool = False
 ) -> dict:
     """Decide allow/deny for a Claude-Code PreToolUse hook event.
 
@@ -115,14 +115,13 @@ def decision_for_hook_event(
     if not isinstance(tool_input, dict):
         tool_input = {}
 
-    # Both switches are OPERATOR-controlled only (CLI flags / env). They are
-    # deliberately NOT read from the hook event payload: a field in the event
-    # would let the very call being checked soften its own gate — a bypass that
-    # has no place in a security tripwire (see test_event_payload_cannot_*).
-    shadow = (
-        os.environ.get("ORCH_GATE_MODE") == "shadow"
-        or bool(event.get("_shadow_flag"))
-    )
+    # Both switches are OPERATOR-controlled only and arrive as EXPLICIT arguments
+    # (from CLI flags) or the ORCH_GATE_MODE env var — NEVER from the untrusted
+    # hook event payload. Reading a shadow flag out of `event` would let the very
+    # call being checked soften its own gate, a bypass with no place in a security
+    # tripwire (see test_event_payload_shadow_flag_cannot_soften_gate). The event
+    # dict is read-only untrusted data after parsing, not a carrier for flags.
+    shadow = shadow or os.environ.get("ORCH_GATE_MODE") == "shadow"
     local_shadow = local_policy == "shadow"
 
     # secret-sweep: a PURE LOCAL policy that runs FIRST, before is_risky, for
@@ -230,9 +229,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(_hook_envelope(_decision(ALLOW, "no hook event"))))
         return 0
 
-    if args.shadow:
-        event["_shadow_flag"] = True
-
     # Workspace resolution: --workspace -> event["cwd"] -> CWD.
     if args.workspace is not None:
         workspace = args.workspace
@@ -241,7 +237,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         workspace = Path.cwd()
 
-    decision = decision_for_hook_event(event, workspace, local_policy=args.local_policy)
+    # shadow is passed as an EXPLICIT operator-controlled argument, never written
+    # back into the untrusted event dict.
+    decision = decision_for_hook_event(
+        event, workspace, local_policy=args.local_policy, shadow=args.shadow
+    )
     print(json.dumps(_hook_envelope(decision)))
     return 0
 

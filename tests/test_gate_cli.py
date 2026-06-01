@@ -124,8 +124,12 @@ def test_secret_in_non_risky_tool_also_denied(tmp_path):
     assert not (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
 
 
-def test_secret_shadow_mode_logs_but_allows(tmp_path, monkeypatch):
-    """Shadow mode never blocks — a secret would-deny is logged as allow."""
+def test_secret_ignores_global_shadow_and_denies(tmp_path, monkeypatch):
+    """secret-sweep is a LOCAL enforce policy with its own switch. The global
+    shadow (ORCH_GATE_MODE / --shadow), which softens the *repo-write* gate, must
+    NOT soften secret-sweep: a secret is still denied hard. This is the whole
+    point of splitting the two policy classes — secret-sweep stays enforce even
+    while the review-needing gate runs in shadow during rollout."""
     monkeypatch.setenv("ORCH_GATE_MODE", "shadow")
     event = {
         "tool_name": "Bash",
@@ -133,9 +137,64 @@ def test_secret_shadow_mode_logs_but_allows(tmp_path, monkeypatch):
         "cwd": str(tmp_path),
     }
     decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    reason = decision["permissionDecisionReason"].lower()
+    assert "secret" in reason
+    # No ledger: secret-sweep never requests a review, enforce or not.
+    assert not (tmp_path / "state" / "GATE_LEDGER.jsonl").exists()
+
+
+def test_secret_local_policy_shadow_logs_but_allows(tmp_path):
+    """secret-sweep CAN be softened, but only via its OWN switch
+    (local_policy='shadow'), not via the global repo-write shadow. Used for a
+    log-only rollout before flipping local policies to enforce."""
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    decision = decision_for_hook_event(event, tmp_path, local_policy="shadow")
     assert decision["permissionDecision"] == "allow"
     reason = decision["permissionDecisionReason"].lower()
     assert "shadow" in reason and "secret" in reason
+
+
+def test_local_policy_enforce_is_default(tmp_path):
+    """Default local_policy is enforce: a secret is denied even with no flags
+    and no env set."""
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    assert "secret" in decision["permissionDecisionReason"].lower()
+
+
+def test_repo_write_gate_still_shadow_while_secret_enforces(tmp_path):
+    """The two switches are independent: with the global shadow on (repo-write
+    gate softened) a RISKY-but-clean action is allowed (would-deny logged), while
+    a SECRET action under the same call is still denied hard."""
+    clean = {
+        "tool_name": "Bash",
+        "tool_input": {"command": "git push"},
+        "cwd": str(tmp_path),
+        "_shadow_flag": True,
+    }
+    clean_decision = decision_for_hook_event(clean, tmp_path)
+    assert clean_decision["permissionDecision"] == "allow"
+    assert "shadow" in clean_decision["permissionDecisionReason"].lower()
+
+    secret = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+        "_shadow_flag": True,
+    }
+    secret_decision = decision_for_hook_event(secret, tmp_path)
+    assert secret_decision["permissionDecision"] == "deny"
+    assert "secret" in secret_decision["permissionDecisionReason"].lower()
 
 
 def test_clean_non_risky_still_not_gated(tmp_path):
@@ -260,6 +319,42 @@ def test_env_shadow_still_works(tmp_path, monkeypatch):
     decision = decision_for_hook_event(_risky_event(tmp_path), tmp_path)
     assert decision["permissionDecision"] == "allow"
     assert "shadow" in decision["permissionDecisionReason"].lower()
+
+
+def test_cli_local_policy_shadow_flag_softens_secret(tmp_path):
+    """--local-policy shadow softens secret-sweep to log-only (subprocess/CLI
+    level). Default (no flag) denies a secret hard."""
+    secret_event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+    }
+    # Default: enforce -> deny.
+    proc_default = _run_cli(tmp_path, secret_event)
+    assert proc_default.returncode == 0, proc_default.stderr
+    assert _decision_from_proc(proc_default)["permissionDecision"] == "deny"
+
+    # --local-policy shadow -> allow, logged.
+    proc_shadow = _run_cli(tmp_path, secret_event, extra_args=["--local-policy", "shadow"])
+    assert proc_shadow.returncode == 0, proc_shadow.stderr
+    decision = _decision_from_proc(proc_shadow)
+    assert decision["permissionDecision"] == "allow"
+    assert "secret" in decision["permissionDecisionReason"].lower()
+
+
+def test_event_payload_cannot_soften_local_policy(tmp_path):
+    """Mirror of test_event_payload_cannot_enable_shadow: an UNTRUSTED event must
+    not soften secret-sweep. A local_policy field in the payload is ignored; the
+    secret is still denied."""
+    event = {
+        "tool_name": "Bash",
+        "tool_input": {"command": f"echo {_ANTHROPIC_SECRET}"},
+        "cwd": str(tmp_path),
+        "local_policy": "shadow",
+    }
+    decision = decision_for_hook_event(event, tmp_path)
+    assert decision["permissionDecision"] == "deny"
+    assert "secret" in decision["permissionDecisionReason"].lower()
 
 
 def test_expired_gate_is_re_requested(tmp_path):

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m orchestrated_loop.gate_cli --workspace \"$CLAUDE_PROJECT_DIR\" --shadow",
+            "command": "python -m orchestrated_loop.gate_cli --workspace \"$CLAUDE_PROJECT_DIR\" --shadow --local-policy enforce",
             "timeout": 30
           }
         ]

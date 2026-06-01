@@ -85,40 +85,56 @@ def _latest_resolved_gate(ledger: GateLedger, digest: str) -> dict[str, Any] | N
     return ledger.latest(newest_gate_id) if newest_gate_id else None
 
 
-def decision_for_hook_event(event: dict, workspace: Path) -> dict:
+def decision_for_hook_event(
+    event: dict, workspace: Path, local_policy: str = "enforce"
+) -> dict:
     """Decide allow/deny for a Claude-Code PreToolUse hook event.
 
     Returns a dict shaped as a PreToolUse decision:
     ``{"permissionDecision": "allow"|"deny", "permissionDecisionReason": ...}``.
 
-    Risky tools (repo-write policy) create or reuse a gate in the ledger and are
-    denied until a reviewer records an accepted result. Non-risky tools pass
-    through without touching the ledger. In shadow mode the gate is still
-    recorded but the decision is always ``allow`` so a rollout never blocks.
+    Two INDEPENDENT policy classes with separate switches:
+
+    * **Local policies** (secret-sweep; later db-safety/deploy-safety) are
+      decidable immediately, with no reviewer. They obey ``local_policy``
+      (``"enforce"`` by default → hard deny; ``"shadow"`` → log-only). They do
+      NOT obey the global repo-write ``shadow`` flag — that would be a footgun:
+      a secret leak must stay blocked even while the review gate is softened for
+      rollout.
+    * **Review policy** (the repo-write gate) needs a cross-device reviewer to
+      resolve, so it cannot safely enforce on its own yet. It obeys the global
+      ``shadow`` flag (CLI ``--shadow`` / ``ORCH_GATE_MODE``): risky tools create
+      or reuse a gate and are denied until a reviewer records an accepted result;
+      in shadow the gate is still recorded but the decision is always ``allow``
+      so a rollout never blocks (and never self-DoSes without a live reviewer).
+
+    Non-risky, secret-free tools pass through untouched.
     """
     tool_name = event.get("tool_name", "")
     tool_input = event.get("tool_input", {})
     if not isinstance(tool_input, dict):
         tool_input = {}
 
-    # Shadow mode is OPERATOR-controlled only (CLI --shadow sets _shadow_flag,
-    # or the ORCH_GATE_MODE env var). It is deliberately NOT read from the hook
-    # event payload: gate_mode in the event would let the very call being checked
-    # disable its own gate — a bypass that has no place in a security tripwire.
+    # Both switches are OPERATOR-controlled only (CLI flags / env). They are
+    # deliberately NOT read from the hook event payload: a field in the event
+    # would let the very call being checked soften its own gate — a bypass that
+    # has no place in a security tripwire (see test_event_payload_cannot_*).
     shadow = (
         os.environ.get("ORCH_GATE_MODE") == "shadow"
         or bool(event.get("_shadow_flag"))
     )
+    local_shadow = local_policy == "shadow"
 
     # secret-sweep: a PURE LOCAL policy that runs FIRST, before is_risky, for
     # EVERY tool. A tool input that would write or expose a secret is denied
     # immediately — no gate request, no ledger, no B roundtrip (a secret leak is
     # never a "wait for review" case). It runs ahead of is_risky on purpose
     # (defense-in-depth): a secret must be caught regardless of whether the
-    # repo-write matcher happens to also fire. Shadow still applies.
+    # repo-write matcher happens to also fire. It obeys its OWN local_policy
+    # switch (default enforce), NOT the global repo-write shadow flag.
     secret = secret_sweep_violation(tool_input)
     if secret is not None:
-        return _shadowed(shadow, DENY, f"secret: {secret}")
+        return _shadowed(local_shadow, DENY, f"secret: {secret}")
 
     if not is_risky(tool_name):
         return _decision(ALLOW, "not gated")
@@ -182,7 +198,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="Claude-Code PreToolUse gate hook for the dual-bridge architecture."
     )
     parser.add_argument("--workspace", type=Path, default=None)
-    parser.add_argument("--shadow", action="store_true", help="Never block; log only.")
+    parser.add_argument(
+        "--shadow",
+        action="store_true",
+        help="Repo-write (review) gate: never block, log only. Does NOT affect secret-sweep.",
+    )
+    parser.add_argument(
+        "--local-policy",
+        choices=("enforce", "shadow"),
+        default="enforce",
+        help="Local policies (secret-sweep): 'enforce' (default) blocks hard; "
+        "'shadow' logs only. Independent of --shadow.",
+    )
     return parser
 
 
@@ -214,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         workspace = Path.cwd()
 
-    decision = decision_for_hook_event(event, workspace)
+    decision = decision_for_hook_event(event, workspace, local_policy=args.local_policy)
     print(json.dumps(_hook_envelope(decision)))
     return 0
 

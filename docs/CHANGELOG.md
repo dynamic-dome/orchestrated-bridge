@@ -4,6 +4,15 @@ Neueste Eintraege oben. Format: `## [YYYY-MM-DD] Kurztitel`
 
 ---
 
+## [2026-07-19] Produktions-Dependency DCO dokumentiert
+
+- Abgleich orchestrated-bridge ↔ DCO ergab: der produktive DCO ruft die Engine bereits per
+  Subprocess auf (`agent_run.py` → `DEFAULT_LOOP_PROJECT` = dieser Ordner) und konsumiert die
+  Import-/Card-Vertraege read-only. Kein Migrationsbedarf.
+- Kopplungs-Hinweis in `CLAUDE.md` + `docs/PROJECT.md` ergaenzt (State-/CLI-Vertraege nicht ohne
+  DCO-Abgleich aendern). Bericht: `collections/dco-integration/2026-07-19-orchestrated-bridge-dco-alignment.md`.
+- Offene Luecke: Pre-Tool-Use-Gate wird vom DCO (noch) nicht konsumiert — Designentscheidung offen.
+
 ## [2026-06-01] Projekt-Dokumentation angelegt (Regel 13)
 
 - `CLAUDE.md` + `HOW-TO-USE.md` im Root angelegt (Namensfalle dokumentiert, Verweis-Landkarte).

@@ -9,6 +9,13 @@ ein **Pre-Tool-Use-Gate**, das riskante Aktionen ueber die Dual-Bridge asynchron
 (Demo-Altlast). Das **Git-Repo** ist `dynamic-dome/orchestrated-bridge`. NICHT zu verwechseln mit
 dem gleichnamigen Plugin-Repo `dynamic-dome/orchestrated-loop` (unverwandte History).
 
+**Produktions-Dependency (wichtig):** Der produktive DCO ruft diese Engine per Subprocess auf
+(`dynamic_central_orchestrator/agent_run.py`, `DEFAULT_LOOP_PROJECT` zeigt hart auf diesen Ordner;
+genutzt werden `python -m orchestrated_loop`, `.dco_import`, `.run_status`, `.final_report`).
+Aenderungen an State-Dateien, CLI-Flags oder Modulnamen brechen den DCO-Agent-Run-Pfad —
+Vertraege stabil halten oder den DCO mitziehen. Abgleich:
+`../../collections/dco-integration/2026-07-19-orchestrated-bridge-dco-alignment.md`.
+
 ## Vor dem Arbeiten lesen (Reihenfolge)
 1. `docs/PROJECT.md` — Zweck + aktueller Stand
 2. `HOW-TO-USE.md` — Wegweiser fuer User UND Agent

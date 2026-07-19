@@ -50,5 +50,9 @@ Siehe [[CAPABILITIES.md]]. Kurzfassung:
 ## Beziehungen zu anderen Projekten
 
 - **Nutzt:** Dual-Bridge fuer den asynchronen Gate-Review (Laptop A ↔ B ueber Google-Drive-Lanes).
-- **Wird genutzt von:** DCO (read-only Handoff-Import) — orchestrated-bridge schreibt nur in seinen Workspace.
+- **Wird genutzt von:** DCO — nicht nur konzeptionell: der produktive DCO ruft die Engine per
+  Subprocess auf (`agent_run.py`, `DEFAULT_LOOP_PROJECT` → dieser Ordner) und konsumiert
+  `DCO_IMPORT.json`/`DCO_WORKER_TASKS.json`/`AGENT_CARDS.json` read-only. **Produktions-Dependency:**
+  State-/CLI-Vertraege nicht ohne DCO-Abgleich aendern. orchestrated-bridge schreibt weiterhin nur
+  in seinen Workspace.
 - Teil des Knowledge-Hub `AI/Agents/` (Eltern-CLAUDE.md gilt zusaetzlich).

@@ -7,7 +7,7 @@ Neueste Eintraege oben. Format: `## [YYYY-MM-DD] Kurztitel`
 ## [Unreleased] Oeffentliche Repo-Qualitaet
 
 - Rechnerspezifische Pfade in oeffentlichen Beispielen durch portable Platzhalter ersetzt.
-- Schreibgeschuetzten GitHub-Actions-Testlauf fuer Python 3.10 und 3.13 ergaenzt.
+- Schreibgeschuetzten GitHub-Actions-Testlauf fuer Python 3.10 und 3.13 unter Linux und Windows ergaenzt.
 - MIT-Lizenz ergaenzt.
 - Python-3.10-Kompatibilitaet fuer UTC-Zeitstempel wiederhergestellt.
 

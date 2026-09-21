@@ -14,8 +14,9 @@ Die Demo nutzt lokale, deterministische APIs fuer vier Rollen:
 ## Schnellstart
 
 ```powershell
-cd C:\Users\domes\AI\Agents\demos\orchestrated-loop
-python -m pip install -e .
+git clone https://github.com/dynamic-dome/orchestrated-bridge.git
+cd orchestrated-bridge
+python -m pip install -e ".[test]"
 python -m pytest
 python -m orchestrated_loop --goal "Build a productive agent system that plans, decomposes, researches, implements, reviews, and improves." --max-iter 5 --target 0.85
 ```

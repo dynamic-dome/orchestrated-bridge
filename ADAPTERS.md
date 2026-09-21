@@ -246,8 +246,8 @@ bevor ein Worker-Backlog geschrieben wird.
 Der echte DCO kann dieses Paket seit 2026-05-30 read-only previewen:
 
 ```powershell
-cd C:\Users\domes\dynamic_central_orchestrator
-.\.venv\Scripts\python.exe -m agent_import --workspace C:\path\to\workspace
+cd <path-to-your-dco-checkout>
+.\.venv\Scripts\python.exe -m agent_import --workspace <path-to-workspace>
 ```
 
 Dieser DCO-Consumer erzeugt nur WorkerRequest-Drafts mit `submit_ready=false`;

@@ -9,6 +9,7 @@ Neueste Eintraege oben. Format: `## [YYYY-MM-DD] Kurztitel`
 - Rechnerspezifische Pfade in oeffentlichen Beispielen durch portable Platzhalter ersetzt.
 - Schreibgeschuetzten GitHub-Actions-Testlauf fuer Python 3.10 und 3.13 ergaenzt.
 - MIT-Lizenz ergaenzt.
+- Python-3.10-Kompatibilitaet fuer UTC-Zeitstempel wiederhergestellt.
 
 ## [2026-07-19] Produktions-Dependency DCO dokumentiert
 

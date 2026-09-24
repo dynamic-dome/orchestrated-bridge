@@ -12,7 +12,7 @@ Wegweiser fuer User UND Agent. Was liegt wo, und wo schaut man zuerst.
 | einen echten Provider anbinden | `README.md` → "Adapter" + `ADAPTERS.md` (Rollenvertrag) |
 | die Architektur / Komponenten | `docs/ARCHITECTURE.md` |
 | was das Projekt kann (Tools/Modi) | `docs/CAPABILITIES.md` |
-| das Pre-Tool-Use-Gate betreiben | `docs/dual-bridge-gate.md` (Threat-Model, Modi, Operator-Doku) |
+| Grenzen des Pre-Tool-Use-Gates verstehen | `docs/dual-bridge-gate.md` (Scope und Modi) |
 | warum eine Entscheidung so fiel | `docs/adr/` (ADR 0001–0004) |
 | was sich wann aenderte | `docs/CHANGELOG.md` |
 
@@ -23,8 +23,7 @@ Wegweiser fuer User UND Agent. Was liegt wo, und wo schaut man zuerst.
 - **`CONTEXT.md`** — Ubiquitous Language. Vor jeder Design-Diskussion lesen, damit Begriffe wie
   *Vertragsbeweis*, *Fallback*, *Provider*, *DCO-Rolle* konsistent benutzt werden.
 - **`ADAPTERS.md`** — Command-Adapter-Vertrag (JSON via stdin/stdout, max_attempts, Fallback).
-- **`docs/dual-bridge-gate.md`** — der Gate-Aufsatz: secret-sweep (lokal-sofort) + repo-write-Gate
-  (review ueber die Bridge), Threat-Model, Skeleton-Limitationen.
+- **`docs/dual-bridge-gate.md`** — Scope und Grenzen von secret-sweep und repo-write-Gate.
 - **`docs/adr/`** — Architecture Decision Records (isolierter Adapter-Call als Beweis;
   OpenAI-Timeout vs. GPT-5-Latenz; Claude-Adapter-Format-Drift; Proof-Artefakt-Trennung real/fake).
 

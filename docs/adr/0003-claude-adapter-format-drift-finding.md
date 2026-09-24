@@ -30,37 +30,31 @@ Der Adapter wurde am 2026-05-30 gegen das beobachtete echte Format gehaertet:
   `ROLE_REQUIRED_KEYS`.
 - Tests decken Event-Stream, BOM/Hook-Noise und Prosa-vor-JSON ab; die alten
   Fake-CLI-Vertragstests bleiben gruen.
-- Isolierte Real-Smokes gegen `claude.exe` fuer `builder` und `judge` liefen ohne
-  Loop-Fallback erfolgreich: `provider.name=claude-code`,
-  `test_results.failed=0` bzw. `blocking=false`.
+- Die damaligen lokalen Real-Smokes gegen `claude.exe` wurden ohne Loop-Fallback
+  ausgefuehrt. Sie sind historische Beobachtungen, keine fortlaufende
+  Kompatibilitaetszusage.
 
-### Persistierte Real-Beweise (2026-05-30, nachgezogen)
+### Lokale Integrationsausgaben (2026-05-30, nachgezogen)
 
-Ein erster Durchlauf liess nur ein `mode: fake`-Artefakt in `PROOF_CLAUDE.json`
-zurueck (der echte Lauf wurde durch einen spaeteren Fake-Lauf ueberschrieben) — die
-Behauptung oben war damit zeitweise NICHT durch ein Artefakt gedeckt. Am 2026-05-30
-nachgezogen und jetzt reproduzierbar gesichert:
+Ein erster Durchlauf liess eine Fake-Ausgabe an der Stelle einer Real-Ausgabe
+zurueck. Daher trennen die Skripte lokale Fake- und Real-Ausgaben nach Modus.
+Die Ausgaben werden nicht versioniert, weil sie provider- und
+maschinenbezogene Antwortdaten enthalten koennen. Diese ADR verweist bewusst
+nicht auf konkrete Ausgabedateien oder Werte; sie belegt keinen aktuell
+verifizierbaren Live-Providerlauf.
 
-- `eval/contract-proof/PROOF_CLAUDE.json` — `mode: real`, `verified: true`,
-  `fallback_used: false`, `duration_ms: 104596`, `changes_count: 1`. Roher Output:
-  `last_stdout_claude.json` (echtes Workspace-Reasoning, schlug einen Docstring fuer
-  `src/orchestrated_loop/__main__.py` vor und verifizierte ihn per `ast.parse`).
-- `eval/contract-proof/PROOF_CLAUDE_JUDGE.json` — `mode: real`, `verified: true`,
-  `fallback_used: false`, `duration_ms: 37020`, `overall: 0.96`, `blocking: false`.
-  Roher Output: `last_stdout_claude_judge.json` (gewichtete Scores entlang der
-  uebergebenen Kriterien, kontextbezogene `next_actions`).
-
-Reproduktion (kostet echte Tokens, laeuft ueber das lokale Abo):
+Ein lokaler Integrationscheck kann mit den Skripten unter
+`eval/contract-proof/` ausgefuehrt werden. Er erfordert eine passend
+konfigurierte lokale Provider-Umgebung und ist nicht Teil der Test-Suite:
 
 ```powershell
-.\eval\contract-proof\prove_claude_builder.ps1   # PROOF_CLAUDE.json (mode: real)
-.\eval\contract-proof\prove_claude_judge.ps1     # PROOF_CLAUDE_JUDGE.json (mode: real)
+.\eval\contract-proof\prove_claude_builder.ps1
+.\eval\contract-proof\prove_claude_judge.ps1
 ```
 
-Echtheits-Marker (statt blindem PASS): die >30s-Latenzen (Fake = ~1s), `logs` mit
-echtem Reasoning ueber den realen Code, und beim judge gewichtete statt konstanter
-Scores. Der builder mutiert per Vertrag den Workspace; der judge mutiert NICHT
-(verifiziert: `src/`-mtimes nach dem judge-Smoke unveraendert).
+Die Modus- und Verifikationsfelder einer lokalen Ausgabe duerfen nur fuer den
+jeweiligen Lauf interpretiert werden. Der builder darf per Vertrag den gewaehlten
+Workspace mutieren; der judge soll dies nicht tun.
 
 Stop-Hook-Noise ist damit parserseitig toleriert. Eine separate Hook-Unterdrueckung
 ist nicht mehr noetig, solange der erste JSON-Wert vollstaendig vor dem Noise steht.

@@ -2,25 +2,22 @@
 
 ## Kontext
 
-Die `prove_claude_*`-Skripte koennen denselben Adapter gegen eine kostenlose
-Fake-CLI (`-Fake`, nur Mechanik) ODER gegen die echte `claude.exe` (kostet Tokens,
-echter Vertragsbeweis) fahren. Das urspruengliche `prove_claude_builder.ps1` schrieb
-in BEIDEN Modi dieselbe Datei `PROOF_CLAUDE.json`.
+Die `prove_claude_*`-Skripte koennen denselben Adapter gegen eine lokale Fake-CLI
+(`-Fake`, nur Mechanik) oder eine konfigurierte Provider-CLI ausfuehren. Das
+urspruengliche Builder-Skript verwendete fuer beide Modi dieselbe Ausgabesenke.
 
 Folge (beobachtet 2026-05-30): Nach einem echten Lauf wurde ein spaeterer Fake-Lauf
-gestartet; dieser ueberschrieb den Real-Beweis mit `mode: fake`. Die Doku (ADR 0003)
-behauptete weiterhin einen erfolgreichen Real-Smoke, aber das einzige persistierte
-Artefakt belegte nur den Fake. Genau der Verifikations-Trugschluss aus
-`verifikation-vor-aktion` / globale CLAUDE.md §4: ein gruenes Artefakt, das nicht das
-beweist, was sein Name suggeriert.
+gestartet; dieser ueberschrieb die Real-Ausgabe mit `mode: fake`. Die Doku (ADR 0003)
+behauptete weiterhin einen erfolgreichen Real-Smoke, obwohl die lokale Ausgabe nur
+den Fake belegte. Das ist ein Verifikations-Trugschluss: Eine grüne Ausgabe beweist
+nicht mehr als ihren ausgewiesenen Modus.
 
 ## Entscheidung
 
 Beweis-Artefakte werden nach Modus getrennt, damit ein billiger Mechanik-Check einen
 teuren Real-Beweis nie still ueberschreibt.
 
-- Das judge-Skript (`prove_claude_judge.ps1`, neu 2026-05-30) schreibt im Real-Modus
-  nach `PROOF_CLAUDE_JUDGE.json`, im Fake-Modus nach `PROOF_CLAUDE_JUDGE_fake.json`.
+- Die Skripte verwenden getrennte Ausgabesenken für Real- und Fake-Modus.
 - Jeder Beweis traegt ein explizites `mode`-Feld (`real` | `fake`) — Konsumenten
   duerfen einen Beweis nur dann als Vertragsbeweis zaehlen, wenn `mode == "real"`
   UND `fallback_used == false` UND `verified == true`.
@@ -29,13 +26,10 @@ teuren Real-Beweis nie still ueberschreibt.
 
 ## Status: GESCHLOSSEN (builder + judge)
 
-- judge: umgesetzt (getrennte Dateinamen) — real → `PROOF_CLAUDE_JUDGE.json`,
-  fake → `PROOF_CLAUDE_JUDGE_fake.json`.
-- builder: umgesetzt 2026-05-30 — real → `PROOF_CLAUDE.json`,
-  fake → `PROOF_CLAUDE_fake.json`. Regressions-Beweis: ein anschliessender
-  Fake-Lauf liess `PROOF_CLAUDE.json` (`mode: real`, 104596ms) unangetastet und
-  schrieb stattdessen `PROOF_CLAUDE_fake.json` (`mode: fake`, ~1.1s). Der
-  Ueberschreib-Unfall ist damit fuer beide Skripte nicht mehr moeglich.
+- Die Trennung ist für builder und judge umgesetzt. Alle erzeugten
+  Integrationsausgaben bleiben lokal und unversioniert, weil sie Antwortdaten,
+  IDs oder lokale Umgebungsdetails enthalten können. Daher sind sie kein
+  öffentlich prüfbarer Nachweis und keine Grundlage für aktuelle Provider-Claims.
 
 ## Lehre
 

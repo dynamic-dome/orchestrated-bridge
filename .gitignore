@@ -15,3 +15,9 @@ deliverables/
 eval/contract-proof/_fake_claude*.py
 eval/contract-proof/PROOF_*_fake.json
 eval/contract-proof/last_stdout_*_fake.json
+
+# Provider-Integrationsergebnisse koennen Antwortdaten, IDs und lokale Pfade
+# enthalten. Sie bleiben lokale, nicht versionierte Nachweise.
+eval/contract-proof/PROOF*.json
+eval/contract-proof/LOOP_PROOF.json
+eval/contract-proof/last_stdout*.json

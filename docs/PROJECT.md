@@ -11,8 +11,8 @@ wiki_entity: "[[orchestrated-bridge]]"
 ## Einzeiler
 
 Zielgetriebener Orchestrator-Loop (plan → research → build → review → improve) mit optionalen
-Provider-Adaptern und read-only DCO-Handoff, aufgesetzt darauf ein Pre-Tool-Use-Gate, das riskante
-Aktionen ueber die Dual-Bridge reviewen laesst.
+Provider-Adaptern und read-only DCO-Handoff. Ein separates Pre-Tool-Use-Gate kann riskante
+Aktionen im Ledger erfassen; ein Review-Transport muss von einer Integration separat angestossen werden.
 
 ## Namensfalle
 
@@ -21,10 +21,9 @@ Das gleichnamige Plugin-Repo `dynamic-dome/orchestrated-loop` ist ein ANDERES Pr
 
 ## Aktueller Stand
 
-Aktiv. Loop + State-/Run-Vertrag stabil. Gate-Aufsatz vertrags- UND live-bewiesen (Phasen 0–6):
-secret-sweep + repo-write-Gate ueber zwei Laptops via Dual-Bridge gezeigt (accepted + rejected real).
-Zuletzt (2026-06-01): Gate-Policy nach Entscheidbarkeit getrennt + Security-Fix (shadow nicht mehr aus
-dem Event-Dict). HEAD `8cf62f3`, alle Tests gruen. Dieses Projekt-Skelett (Regel 13) am 2026-06-01 nachgeholt.
+Das Repository enthaelt einen lokalen, testbaren Demo-Loop und optionale
+Provider-Adapter. Der Gate-Aufsatz ist ein experimenteller Bestandteil; seine
+Grenzen und Rollout-Hinweise stehen in `docs/dual-bridge-gate.md`.
 
 ## Kernfaehigkeiten
 
@@ -32,7 +31,7 @@ Siehe [[CAPABILITIES.md]]. Kurzfassung:
 - Deterministischer Orchestrator-Loop mit vier Rollen + maschinenlesbarem State-/Run-Vertrag.
 - Command-Adapter fuer echte Provider (OpenAI Responses, Claude Code CLI) hinter dem Rollen-Vertrag.
 - Read-only DCO-Handoff/Import/Validation (mutiert keine DCO-DB).
-- Pre-Tool-Use-Gate: secret-sweep (lokal-sofort) + repo-write-Gate (asynchroner Review ueber die Bridge).
+- Pre-Tool-Use-Gate: secret-sweep (lokal-sofort) + repo-write-Ledger fuer optionale externe Reviews.
 
 ## Offene Baustellen
 
@@ -45,14 +44,10 @@ Siehe [[CAPABILITIES.md]]. Kurzfassung:
 
 - Python + pytest (lokal, deterministisch).
 - Optional: OpenAI API-Key bzw. Claude Code CLI fuer echte Adapter.
-- Dual-Bridge (`~/AI/dual-bridge`, Repo `dynamic-dome/dual-bridge`) fuer den Gate-Review-Pfad.
+- Optional ein kompatibler Review-Transport fuer den repo-write-Gate-Pfad.
 
 ## Beziehungen zu anderen Projekten
 
-- **Nutzt:** Dual-Bridge fuer den asynchronen Gate-Review (Laptop A ↔ B ueber Google-Drive-Lanes).
-- **Wird genutzt von:** DCO — nicht nur konzeptionell: der produktive DCO ruft die Engine per
-  Subprocess auf (`agent_run.py`, `DEFAULT_LOOP_PROJECT` → dieser Ordner) und konsumiert
-  `DCO_IMPORT.json`/`DCO_WORKER_TASKS.json`/`AGENT_CARDS.json` read-only. **Produktions-Dependency:**
-  State-/CLI-Vertraege nicht ohne DCO-Abgleich aendern. orchestrated-bridge schreibt weiterhin nur
-  in seinen Workspace.
-- Teil des Knowledge-Hub `AI/Agents/` (Eltern-CLAUDE.md gilt zusaetzlich).
+- Die erzeugten Handoff-Dateien koennen von einem externen Consumer read-only
+  verarbeitet werden. Dieses Repository implementiert keine Queueing- oder
+  Datenbankintegration.

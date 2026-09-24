@@ -18,8 +18,10 @@ sitzt orthogonal darueber und prueft Tool-Aktionen, bevor sie ausgefuehrt werden
 
   state/*  ──read-only──▶  DCO-Handoff / Import / Validation
 
-  Tool-Call ─▶ Pre-Tool-Use-Gate ─▶ secret-sweep? ─deny─▶ (lokal, sofort, kein Roundtrip)
-                                  └▶ repo-write?  ─review─▶ Dual-Bridge (Lane A→B) ─▶ accepted|rejected
+  Tool-Call ─▶ Pre-Tool-Use-Gate ─▶ secret-sweep? ─deny─▶ (lokal, sofort)
+                                  └▶ repo-write?  ─▶ Gate-Ledger
+
+  Optionaler externer Aufrufer ─▶ BridgeGateClient ─▶ Review-Transport ─▶ Ergebnis im Ledger
 ```
 
 ## Kernkomponenten
@@ -42,16 +44,19 @@ sitzt orthogonal darueber und prueft Tool-Aktionen, bevor sie ausgefuehrt werden
 ### Pre-Tool-Use-Gate
 - **Datei(en):** `gate_cli.py`, `gate_models.py`, `gate_ledger.py`, `gate_bridge.py`, `gate_secret_sweep.py`
 - **Aufgabe:** Tool-Aktion vor Ausfuehrung pruefen. Zwei getrennte Policies nach Entscheidbarkeit:
-  secret-sweep (lokal, sofort deny, `--local-policy enforce`) und repo-write-Gate (Review ueber Bridge, `--shadow`).
-- **Abhaengigkeiten:** append-only `state/GATE_LEDGER.jsonl`; fuer Review die Dual-Bridge-Lanes.
+  secret-sweep (lokal, sofort deny, `--local-policy enforce`) und repo-write (Ledger-Entscheidung, `--shadow`).
+- **Abhaengigkeiten:** append-only `state/GATE_LEDGER.jsonl`. `gate_bridge.py` ist ein separater
+  Helper fuer einen optionalen, deployment-spezifischen Review-Transport.
 
 ## Datenfluss (Gate)
 
 1. Claude-Code PreToolUse-Hook ruft `gate_cli` mit der Tool-Aktion (Event via stdin).
 2. **secret-sweep FIRST** ueber alle Tools: Secret erkannt → sofort lokal `deny`, kein Ledger-Gate-Eintrag, kein B-Roundtrip.
-3. Sonst `is_risky`? → repo-write-Gate: `gate_requested` ins Ledger; im Bridge-Flow Review-Task in Lane A→B.
-4. Laptop B (echter `claude -p` Reviewer, hook-frei, Abo) urteilt adversarial → `accepted` | `rejected` (fail-closed).
-5. A liest das Verdikt per `gate_id`; bei jedem Reviewer-Fehler kommt `rejected`, nie faelschlich `accepted`.
+3. Sonst `is_risky`? → repo-write-Gate: `gate_requested` ins Ledger. Ohne Ergebnis bleibt die
+   Anfrage offen; in `--shadow` wird die Tool-Aktion dennoch erlaubt.
+4. Ein externer Integrator kann `BridgeGateClient` verwenden, um einen Review-Transport zu bedienen
+   und ein Ergebnis anhand der `gate_id` bereitzustellen. `gate_cli` tut dies nicht.
+5. Ein vorhandenes akzeptiertes Ergebnis erlaubt dieselbe Aktion; ein abgelehntes Ergebnis verweigert sie.
 
 ## Persistenz
 
@@ -65,11 +70,14 @@ sitzt orthogonal darueber und prueft Tool-Aktionen, bevor sie ausgefuehrt werden
 
 - shadow ist **Operator-Parameter**, nie aus dem (untrusted) Event-Dict — sonst injizierbarer Self-Bypass.
 - secret-sweep ist deny-first und laeuft VOR `is_risky`, fuer ALLE Tools.
-- repo-write-Gate default `--shadow` → kein Self-DoS ohne lebenden Reviewer; enforce erst nach Entscheidung.
+- repo-write-Gate default `--shadow` → kein Self-DoS ohne Ergebnis; enforce erst nach eigener
+  Prüfung einer vollständigen Integration.
 - Workspace-Grenze: keine Schreibzugriffe ausserhalb des gewaehlten Workspaces.
 - Threat-Model + Skeleton-Limitationen: `docs/dual-bridge-gate.md`.
 
 ## Deployment
 
 Kein Produktivsystem. Lokal: `pip install -e ".[test]"`, `python -m pytest`, dann `python -m orchestrated_loop …`.
-Gate wird per projekt-lokaler `.claude/settings.json` (PreToolUse-Hook) aktiviert. Details: `README.md` + `docs/dual-bridge-gate.md`.
+Gate wird per projekt-lokaler `.claude/settings.json` (PreToolUse-Hook) aktiviert. Der Hook
+schreibt bzw. prüft nur Ledger-Einträge; eine Transportintegration wird dadurch nicht aktiviert.
+Details: `README.md` + `docs/dual-bridge-gate.md`.

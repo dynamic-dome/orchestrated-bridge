@@ -186,10 +186,10 @@ Ein Claude-Code-Rollenadapter fuer `builder` und `judge` ist ebenfalls enthalten
 python -m orchestrated_loop --goal "..." --adapter-config .\adapters.claude-code.example.json
 ```
 
-Der Claude-Code-Adapter ist gegen die aktuelle `claude.exe`-Ausgabe gehaertet:
-er kann das echte JSON-Event-Array, BOM/trailing Hook-Noise und kurzen Prosa-Text
-vor dem Rollen-JSON parsen. Am 2026-05-30 wurden `builder` und `judge` isoliert
-gegen `claude.exe` ohne Loop-Fallback live gesmoked.
+Der Claude-Code-Adapter verarbeitet den dokumentierten Rollenvertrag sowie
+JSON-Event-Arrays, BOM/trailing Hook-Noise und kurzen Prosa-Text vor dem
+Rollen-JSON. Die Tests verwenden eine lokale Fake-CLI; ein konfigurierter
+Provider bleibt eine optionale Integration und ist nicht Teil der Test-Suite.
 
 ## Echte APIs anbinden
 

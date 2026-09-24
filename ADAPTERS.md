@@ -183,15 +183,11 @@ eingebettetes Rollen-JSON-Objekt auch dann, wenn Claude vor dem Objekt kurzen
 Prosa-Text ausgibt. Tests nutzen eine lokale Fake-CLI und pruefen damit Contract,
 Windows-sichere Command-Aufloesung und Fallback ohne echte Modellaufrufe.
 
-Real-Smoke 2026-05-30: Isolierte Aufrufe gegen `claude.exe` haben `builder` und
-`judge` ohne Loop-Fallback erfolgreich gegen den Rollenvertrag geparst
-(`provider.name=claude-code`, `test_results.failed=0` bzw. `blocking=false`).
-Persistierte Real-Beweise (`mode: real`): `eval/contract-proof/PROOF_CLAUDE.json`
-(builder, 104,6s, mutiert Workspace per Vertrag) und
-`eval/contract-proof/PROOF_CLAUDE_JUDGE.json` (judge, 37,0s, `overall=0.96`,
-mutiert NICHT). Reproduktion: `prove_claude_builder.ps1` bzw.
-`prove_claude_judge.ps1` ohne `-Fake`. Hintergrund zur Fake/Real-Artefakt-Trennung:
-ADR 0004.
+Die Tests verwenden eine lokale Fake-CLI und pruefen damit Contract,
+Windows-sichere Command-Aufloesung und Fallback ohne echte Modellaufrufe.
+Die Skripte unter `eval/contract-proof/` sind nur fuer einen bewusst lokal
+ausgefuehrten Integrationscheck gedacht. Ihre Ausgaben sind maschinen- und
+providerbezogen und werden nicht versioniert.
 
 ## DCO-Pfad
 
@@ -243,43 +239,9 @@ Der Importer schreibt nur in den gewaehlen Workspace:
 Ist der Handoff invalid oder wuerde DCO-Mutation erlauben, bricht der Importer ab,
 bevor ein Worker-Backlog geschrieben wird.
 
-Der echte DCO kann dieses Paket seit 2026-05-30 read-only previewen:
-
-```powershell
-cd <path-to-your-dco-checkout>
-.\.venv\Scripts\python.exe -m agent_import --workspace <path-to-workspace>
-```
-
-Dieser DCO-Consumer erzeugt nur WorkerRequest-Drafts mit `submit_ready=false`;
-Queueing und Datenbankmutation bleiben bis zu einer expliziten Freigabestufe aus.
-Wenn `state/AGENT_CARDS.json` vorhanden ist, uebernimmt DCO Capabilities und
-Safety-Regeln in Preview, Worker-Prompt und Agent Registry.
-
-Seit 2026-05-30 kann die laufende DCO-Instanz ein validiertes Paket nach Admin-
-Freigabe in echte Jobs uebernehmen:
-
-```http
-POST /api/agent-import/preview
-{
-  "workspace": "C:\\path\\to\\workspace"
-}
-```
-
-```http
-POST /api/agent-import/queue
-{
-  "workspace": "C:\\path\\to\\workspace",
-  "confirmed_workflow_id": "run-...",
-  "max_active": 20
-}
-```
-
-Der Endpunkt laeuft nur mit DCO-Admin-Gate, verlangt die exakte Workflow-ID als
-Bestaetigung, ist idempotent pro Draft und submitted die Jobs im laufenden DCO-
-Prozess an `worker.submit`.
-
-Im DCO-Dashboard liegt derselbe Ablauf unter Funktionen -> Agent-Import Queue:
-Workspace eintragen, Preview laden, danach den angezeigten Workflow queuen.
+Ein externer Consumer kann dieses Paket read-only auswerten. Die Integration,
+Freigaben und etwaige Queueing- oder Datenbankoperationen gehoeren bewusst nicht
+zum Scope dieses Repositories.
 
 Eine Operator-Zusammenfassung kann lokal aus allen Run-Artefakten erzeugt werden:
 
